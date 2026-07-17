@@ -33,8 +33,8 @@ const routes = [
       },
       {
         path: 'menus',
-        name: 'MenuManage',
-        component: () => import('@/views/MenuManage.vue'),
+        name: 'ModuleManage',
+        component: () => import('@/views/ModuleManage.vue'),
         meta: { title: '菜单管理' }
       },
       {

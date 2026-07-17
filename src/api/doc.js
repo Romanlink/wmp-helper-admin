@@ -10,8 +10,8 @@ export function uploadFile(file) {
   })
 }
 
-export function listDocsByMenu(menuId) {
-  return http.get('/docs', { params: { menuId } })
+export function listDocsByMenu(moduleId) {
+  return http.get('/docs', { params: { moduleId } })
 }
 
 export function getDocByDocId(docId) {

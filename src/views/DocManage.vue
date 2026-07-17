@@ -14,9 +14,9 @@
           <option value="tag">按标签筛选</option>
         </select>
 
-        <select v-if="searchMode === 'menu'" v-model="selectedMenuId" @change="onFilterByMenu" class="filter-select">
+        <select v-if="searchMode === 'menu'" v-model="selectedModuleId" @change="onFilterByMenu" class="filter-select">
           <option :value="null">全部菜单</option>
-          <option v-for="m in allMenus" :key="m.id" :value="m.id">{{ m.menuName }}</option>
+          <option v-for="m in allMenus" :key="m.id" :value="m.id">{{ m.moduleName }}</option>
         </select>
 
         <input v-if="searchMode === 'tag'" v-model="tagKeyword" @keyup.enter="onFilterByTag" placeholder="输入标签关键词..." class="filter-input" />
@@ -37,7 +37,7 @@
         </div>
 
         <div class="doc-meta">
-          <span class="doc-menu-tag tag tag-primary">{{ getMenuName(doc.menuId) }}</span>
+          <span class="doc-menu-tag tag tag-primary">{{ getModuleName(doc.moduleId) }}</span>
           <span class="doc-id text-muted text-sm">#{{ doc.docId }}</span>
         </div>
 
@@ -98,8 +98,8 @@
           <template v-if="editing">
             <div class="form-group">
               <label class="form-label">所属菜单 <span style="color:var(--text-danger)">*</span></label>
-              <select v-model.number="form.menuId">
-                <option v-for="m in allMenus" :key="m.id" :value="m.id">{{ m.menuName }}</option>
+              <select v-model.number="form.moduleId">
+                <option v-for="m in allMenus" :key="m.id" :value="m.id">{{ m.moduleName }}</option>
               </select>
             </div>
             <div class="form-group">
@@ -167,7 +167,7 @@
         </div>
         <div class="modal-body">
           <div class="detail-meta flex gap-sm mb-md">
-            <span class="tag tag-primary">{{ getMenuName(detailDoc?.menuId) }}</span>
+            <span class="tag tag-primary">{{ getModuleName(detailDoc?.moduleId) }}</span>
             <span v-for="tag in (detailDoc?.docTags || '').split(/[|,]/).map(t=>t.trim()).filter(Boolean)" :key="tag" class="tag tag-primary">{{ tag }}</span>
           </div>
           <div class="detail-content markdown-body" v-html="renderMarkdown(detailDoc?.docContent || '')"></div>
@@ -183,7 +183,7 @@ import {
   listDocsByMenu, searchDocs, listDocsByTag, getDocByDocId,
   createDoc, updateDoc, deleteDoc, getDownloadUrl, uploadFile
 } from '@/api/doc'
-import { listMenus } from '@/api/menu'
+import { listModules } from '@/api/menu'
 import { getParam } from '@/api/param'
 import { showToast } from '@/composables/toast'
 
@@ -191,7 +191,7 @@ const docs = ref([])
 const allMenus = ref([])
 const searchKeyword = ref('')
 const searchMode = ref('keyword')
-const selectedMenuId = ref(null)
+const selectedModuleId = ref(null)
 const tagKeyword = ref('')
 const showForm = ref(false)
 const editing = ref(false)
@@ -201,7 +201,7 @@ const detailDoc = ref(null)
 
 const form = ref({
   docTitle: '',
-  menuId: null,
+  moduleId: null,
   originalPath: '',
   docTags: '',
   docContent: '',
@@ -232,7 +232,7 @@ async function loadDocs() {
 
 async function loadMenus() {
   try {
-    allMenus.value = await listMenus() || []
+    allMenus.value = await listModules() || []
   } catch {
     allMenus.value = []
   }
@@ -249,8 +249,8 @@ async function onSearch() {
 
 async function onFilterByMenu() {
   try {
-    if (selectedMenuId.value) {
-      docs.value = await listDocsByMenu(selectedMenuId.value) || []
+    if (selectedModuleId.value) {
+      docs.value = await listDocsByMenu(selectedModuleId.value) || []
     } else {
       await loadDocs()
     }
@@ -268,15 +268,15 @@ async function onFilterByTag() {
   }
 }
 
-function getMenuName(menuId) {
-  if (menuId == null) return '未分类'
-  const m = allMenus.value.find(x => x.id === menuId)
-  return m?.menuName || '菜单#' + menuId
+function getModuleName(moduleId) {
+  if (moduleId == null) return '未分类'
+  const m = allMenus.value.find(x => x.id === moduleId)
+  return m?.moduleName || '菜单#' + moduleId
 }
 
 function openCreate() {
   editing.value = false
-  form.value = { docTitle: '', menuId: allMenus.value[0]?.id || null, originalPath: '', docTags: '', docContent: '', isVisible: 1 }
+  form.value = { docTitle: '', moduleId: allMenus.value[0]?.id || null, originalPath: '', docTags: '', docContent: '', isVisible: 1 }
   uploadedFilePath.value = ''
   uploadedFileName.value = ''
   uploadedAttachPwd.value = ''
@@ -289,7 +289,7 @@ async function openEdit(doc) {
   form.value = {
     docId: doc.docId,
     docTitle: doc.docTitle,
-    menuId: doc.menuId,
+    moduleId: doc.moduleId,
     originalPath: doc.originalPath || '',
     docTags: doc.docTags || '',
     docContent: doc.docContent || '',
@@ -303,14 +303,14 @@ async function saveDoc() {
     showToast('请输入文档标题', 'error')
     return
   }
-  if (!form.value.menuId) {
+  if (!form.value.moduleId) {
     showToast('请选择所属菜单', 'error')
     return
   }
   saving.value = true
   try {
     const payload = {
-      menuId: form.value.menuId,
+      moduleId: form.value.moduleId,
       docTitle: form.value.docTitle.trim(),
       originalPath: editing.value ? (form.value.originalPath || '') : uploadedFilePath.value,
       attachPwd: uploadedAttachPwd.value || undefined,

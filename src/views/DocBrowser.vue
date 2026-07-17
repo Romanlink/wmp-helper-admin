@@ -17,7 +17,7 @@
         <!-- 全部文档 -->
         <div
           class="menu-node"
-          :class="{ 'menu-node--active': activeMenuId === null }"
+          :class="{ 'menu-node--active': activeModuleId === null }"
           @click="selectMenu(null)"
         >
           <svg class="menu-node-icon" width="8" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
@@ -28,7 +28,7 @@
         <template v-for="menu in topMenus" :key="menu.id">
           <div
             class="menu-node menu-node--parent"
-            :class="{ 'menu-node--active': activeMenuId === menu.id, 'menu-node--expanded': expandedIds.has(menu.id) }"
+            :class="{ 'menu-node--active': activeModuleId === menu.id, 'menu-node--expanded': expandedIds.has(menu.id) }"
             @click="toggleMenu(menu)"
           >
             <svg
@@ -39,7 +39,7 @@
               <polyline points="9 18 15 12 9 6"/>
             </svg>
             <svg class="menu-node-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-            <span class="menu-node-name">{{ menu.menuName }}</span>
+            <span class="menu-node-name">{{ menu.moduleName }}</span>
             <span class="menu-node-count" v-if="docCounts[menu.id] !== undefined">{{ docCounts[menu.id] }}</span>
           </div>
 
@@ -50,11 +50,11 @@
                 v-for="child in childMenusMap[menu.id] || []"
                 :key="child.id"
                 class="menu-node menu-node--child"
-                :class="{ 'menu-node--active': activeMenuId === child.id }"
+                :class="{ 'menu-node--active': activeModuleId === child.id }"
                 @click.stop="selectMenu(child.id)"
               >
                 <svg class="menu-node-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <span class="menu-node-name">{{ child.menuName }}</span>
+                <span class="menu-node-name">{{ child.moduleName }}</span>
               </div>
             </div>
           </transition>
@@ -67,7 +67,7 @@
       <!-- 头部：标题 + 新增按钮 -->
       <div class="doc-panel-header">
         <div class="doc-panel-title">
-          <h3>{{ activeMenuName }}</h3>
+          <h3>{{ activeModuleName }}</h3>
           <span class="doc-total-badge">{{ docs.length }} 篇</span>
         </div>
         <button v-if="docsEditable" class="btn btn-primary btn-sm" @click="openCreateModal">
@@ -136,7 +136,7 @@
                   />
                 </div>
               </td>
-              <td class="time-cell">{{ doc.menuName || '—' }}</td>
+              <td class="time-cell">{{ doc.moduleName || '—' }}</td>
               <td class="time-cell">{{ doc.updateTime || '—' }}</td>
               <td class="action-cell" @click.stop>
                 <button class="btn btn-icon-sm btn-ghost" title="下载" v-if="doc.originalPath && docsDownloadable" @click="downloadDoc(doc.docId)">
@@ -251,7 +251,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { listMenus, getMenuChildren } from '@/api/menu'
+import { listModules, getModuleChildren } from '@/api/menu'
 import { listDocsByMenu, createDoc, updateDoc, getDocByDocId, getDownloadUrl, updateDocTags, uploadFile } from '@/api/doc'
 import { getParam } from '@/api/param'
 import { showToast } from '@/composables/toast'
@@ -260,7 +260,7 @@ import { showToast } from '@/composables/toast'
 const topMenus = ref([])
 const childMenusMap = ref({})
 const expandedIds = ref(new Set())
-const activeMenuId = ref(null)
+const activeModuleId = ref(null)
 const docCounts = ref({})
 
 // ===== 文档 =====
@@ -306,13 +306,13 @@ const tagInputRefSetter = (el) => {
   if (el) nextTick(() => el.focus())
 }
 
-const activeMenuName = computed(() => {
-  if (activeMenuId.value === null) return '全部文档'
+const activeModuleName = computed(() => {
+  if (activeModuleId.value === null) return '全部文档'
   for (const m of topMenus.value) {
-    if (m.id === activeMenuId.value) return m.menuName
+    if (m.id === activeModuleId.value) return m.moduleName
     const children = childMenusMap.value[m.id] || []
-    const c = children.find(x => x.id === activeMenuId.value)
-    if (c) return c.menuName
+    const c = children.find(x => x.id === activeModuleId.value)
+    if (c) return c.moduleName
   }
   return '文档列表'
 })
@@ -326,11 +326,11 @@ function parseTags(str) {
 async function loadMenus() {
   menuLoading.value = true
   try {
-    const all = await listMenus() || []
+    const all = await listModules() || []
     topMenus.value = all.filter(m => !m.parentId || m.parentId === 0)
     await Promise.all(topMenus.value.map(async (m) => {
       try {
-        const children = await getMenuChildren(m.id) || []
+        const children = await getModuleChildren(m.id) || []
         if (children.length) childMenusMap.value[m.id] = children
       } catch { /* ignore */ }
     }))
@@ -339,10 +339,10 @@ async function loadMenus() {
 }
 
 // ===== 文档加载 =====
-async function loadDocs(menuId) {
+async function loadDocs(moduleId) {
   docLoading.value = true
   try {
-    const result = await listDocsByMenu(menuId) || []
+    const result = await listDocsByMenu(moduleId) || []
     docs.value = result
   } catch {
     docs.value = []
@@ -350,9 +350,9 @@ async function loadDocs(menuId) {
   docLoading.value = false
 }
 
-async function selectMenu(menuId) {
-  activeMenuId.value = menuId
-  await loadDocs(menuId)
+async function selectMenu(moduleId) {
+  activeModuleId.value = moduleId
+  await loadDocs(moduleId)
 }
 
 async function toggleMenu(menu) {
@@ -431,7 +431,7 @@ async function submitForm() {
       attachPwd: uploadedAttachPwd.value || undefined,
       docContent: form.value.docContent,
       isVisible: form.value.isVisible,
-      menuId: activeMenuId.value
+      moduleId: activeModuleId.value
     }
     if (isEditing.value) {
       await updateDoc(editingDocId.value, payload)
@@ -442,7 +442,7 @@ async function submitForm() {
     }
     showFormModal.value = false
     // 刷新列表
-    await loadDocs(activeMenuId.value)
+    await loadDocs(activeModuleId.value)
   } catch (e) {
     showToast('操作失败：' + (e?.message || '未知错误'), 'error')
   }

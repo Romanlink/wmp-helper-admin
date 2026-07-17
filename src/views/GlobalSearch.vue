@@ -86,7 +86,7 @@
                 />
               </div>
             </td>
-            <td class="time-cell">{{ doc.menuName || '—' }}</td>
+            <td class="time-cell">{{ doc.moduleName || '—' }}</td>
             <td class="time-cell">{{ doc.updateTime || '—' }}</td>
             <td class="action-cell" @click.stop>
               <button class="btn btn-icon-sm btn-ghost" title="下载" v-if="doc.originalPath && docsDownloadable" @click="downloadDoc(doc.docId)">

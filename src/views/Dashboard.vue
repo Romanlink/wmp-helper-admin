@@ -144,7 +144,7 @@
 
 <script setup>
 import { ref, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { listMenus } from '@/api/menu'
+import { listModules } from '@/api/menu'
 import http from '@/api/http'
 import { renderMarkdown } from '@/utils/markdown'
 
@@ -155,12 +155,12 @@ const docCount = ref(0)
 
 async function fetchStats() {
   try {
-    const menus = await listMenus()
+    const menus = await listModules()
     menuCount.value = menus.length
     visibleMenuCount.value = menus.filter(m => m.isVisible).length
   } catch { /* ignore */ }
   try {
-    const docs = await http.get('/docs', { params: { menuId: 0 } }) || []
+    const docs = await http.get('/docs', { params: { moduleId: 0 } }) || []
     docCount.value = Array.isArray(docs) ? docs.length : 0
   } catch { /* ignore */ }
 }
