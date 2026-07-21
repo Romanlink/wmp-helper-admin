@@ -55,6 +55,11 @@
             </span>
           </div>
         </div>
+        <label class="rag-switch" :class="{ 'rag-switch--on': useRag }" title="开启后，回答将基于你有权限查看的私有文档">
+          <input type="checkbox" v-model="useRag" />
+          <span class="rag-switch-track"><span class="rag-switch-knob"></span></span>
+          <span class="rag-switch-label">基于文档回答</span>
+        </label>
         <button class="btn btn-ghost btn-sm" @click="clearMessages" title="清空对话">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/>
@@ -119,7 +124,7 @@
             v-model="inputText"
             ref="inputEl"
             class="chat-input"
-            placeholder="输入消息，按 Enter 发送，Shift+Enter 换行..."
+            :placeholder="useRag ? '基于私有文档提问，例如：这份制度里是怎么规定的？' : '输入消息，按 Enter 发送，Shift+Enter 换行...'"
             rows="1"
             @keydown.enter.exact.prevent="sendMessage"
             @input="autoResize"
@@ -171,6 +176,7 @@ const inputText = ref('')
 const messagesEl = ref(null)
 const inputEl = ref(null)
 const isThinking = ref(false)
+const useRag = ref(false)    // 是否基于私有文档问答（RAG 模式）
 let aiController = null      // fetch AbortController
 let activeAiMsg = null       // 当前正在流式输出的 AI 消息对象
 let typeTimer = null         // 打字机定时器
@@ -209,15 +215,28 @@ async function sendMessage() {
   isThinking.value = true
   scrollToBottom()
 
-  // 用 fetch 流式读取 SSE（比 EventSource 更可靠，可携带凭证，不受代理缓冲影响）
-  const url = `${sseBase}/api/chat/stream?message=${encodeURIComponent(text)}`
   aiController = new AbortController()
   pendingBuffer = ''
 
   try {
-    // 注意：chat/stream 已排除鉴权，无需携带凭证；带 credentials 会让浏览器
-    // 拒绝后端返回的 `Access-Control-Allow-Origin: *`，从而触发 CORS 报错
-    const resp = await fetch(url, { signal: aiController.signal })
+    let resp
+    if (useRag.value) {
+      // RAG 模式：POST /api/chat/rag，需携带登录凭证（按角色可见模块检索文档切片）
+      const token = localStorage.getItem('helper-token')
+      resp = await fetch(`${sseBase}/api/chat/rag`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ message: text }),
+        signal: aiController.signal
+      })
+    } else {
+      // 普通模式：GET /api/chat/stream（已排除鉴权，无需凭证）
+      const url = `${sseBase}/api/chat/stream?message=${encodeURIComponent(text)}`
+      resp = await fetch(url, { signal: aiController.signal })
+    }
     if (!resp.ok || !resp.body) {
       throw new Error('HTTP ' + resp.status)
     }
@@ -250,7 +269,9 @@ async function sendMessage() {
     if (aiMsg.streaming || aiMsg.loading) {
       finishStream()
       if (!aiMsg.content) {
-        aiMsg.content = '抱歉，连接出现异常，请稍后重试。'
+        aiMsg.content = useRag.value
+          ? '抱歉，基于文档的问答失败（请确认已登录，且相关文档已索引）。'
+          : '抱歉，连接出现异常，请稍后重试。'
       }
     }
   }
@@ -819,6 +840,58 @@ onBeforeUnmount(() => {
 .send-btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+/* RAG 模式开关 */
+.rag-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-md);
+  transition: background 0.15s;
+}
+.rag-switch:hover {
+  background: var(--bg-tertiary, rgba(0,0,0,0.04));
+}
+.rag-switch input {
+  display: none;
+}
+.rag-switch-track {
+  width: 34px;
+  height: 18px;
+  border-radius: 10px;
+  background: var(--border-color);
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.rag-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  transition: transform 0.2s;
+}
+.rag-switch--on .rag-switch-track {
+  background: var(--accent);
+}
+.rag-switch--on .rag-switch-knob {
+  transform: translateX(16px);
+}
+.rag-switch-label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.rag-switch--on .rag-switch-label {
+  color: var(--accent-hover);
 }
 
 .chat-hint {

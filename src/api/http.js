@@ -21,6 +21,11 @@ http.interceptors.request.use(
 // ==================== 响应拦截器：统一处理响应 + 401 ====================
 http.interceptors.response.use(
   res => {
+    // 二进制下载（responseType: 'blob'）直接透传 Blob，切勿按 JSON 解析，
+    // 否则会把合法的文档流误判为失败并 reject。
+    if (res.config && res.config.responseType === 'blob') {
+      return res.data
+    }
     const { code, message, data } = res.data
     if (code === 0 || code === 200) return data
     return Promise.reject(new Error(message || '请求失败'))
@@ -48,6 +53,18 @@ http.interceptors.response.use(
       if (location.hash !== '#/login') {
         location.hash = '#/login'
       }
+    }
+    // 对于 blob 错误响应（如下载接口返回 404 的 JSON），从中读取真实错误信息
+    if (err.response && err.response.config && err.response.config.responseType === 'blob'
+        && err.response.data && typeof err.response.data.text === 'function') {
+      return err.response.data.text().then(text => {
+        let msg = '下载失败'
+        try {
+          const j = JSON.parse(text)
+          msg = j.message || msg
+        } catch (_) { /* 非 JSON，保留默认提示 */ }
+        return Promise.reject(new Error(msg))
+      })
     }
     return Promise.reject(err)
   }

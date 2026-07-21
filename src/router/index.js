@@ -32,6 +32,12 @@ const routes = [
         meta: { title: '全站检索' }
       },
       {
+        path: 'doc-convert',
+        name: 'DocConvert',
+        component: () => import('@/views/DocConvert.vue'),
+        meta: { title: '文档转换' }
+      },
+      {
         path: 'menus',
         name: 'ModuleManage',
         component: () => import('@/views/ModuleManage.vue'),
